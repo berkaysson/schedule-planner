@@ -77,9 +77,7 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [highlightedDates, setHighlightedDates] = useState<string[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [initialDate, setInitialDate] = useState<Date>(
-    dayjs(schedule?.scheduleStartDate).toDate()
-  );
+  const [initialDate, setInitialDate] = useState<Date>(new Date());
 
   const getPlugins = () => {
     const plugins = [dayGridPlugin];
@@ -126,6 +124,23 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     }
 
     return dates;
+  };
+
+  const getFirstEventDate = () => {
+    if (!schedule?.assignments || schedule.assignments.length === 0) {
+      return dayjs(schedule?.scheduleStartDate).toDate();
+    }
+
+    // En eski etkinliği bulun
+    const earliestAssignment = schedule.assignments.reduce(
+      (earliest, current) => {
+        const currentDate = dayjs(current.shiftStart);
+        const earliestDate = dayjs(earliest.shiftStart);
+        return currentDate.isBefore(earliestDate) ? current : earliest;
+      }
+    );
+
+    return dayjs(earliestAssignment.shiftStart).toDate();
   };
 
   const generateStaffBasedCalendar = () => {
@@ -175,8 +190,24 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     setEvents(works);
   };
 
+  // takvim varsayılan tarihi ilk evente göre ayarlandı
   useEffect(() => {
-    setSelectedStaffId(schedule?.staffs?.[0]?.id);
+    if (schedule?.staffs && schedule.staffs.length > 0) {
+      setSelectedStaffId(schedule.staffs[0].id);
+    }
+
+    if (schedule?.assignments && schedule.assignments.length > 0) {
+      const firstEventDate = getFirstEventDate();
+      setInitialDate(firstEventDate);
+
+      // ilk renderda çalışmasını önleyerek flusySync hatası giderildi
+      setTimeout(() => {
+        if (calendarRef.current) {
+          calendarRef.current.getApi().gotoDate(firstEventDate);
+        }
+      }, 0);
+    }
+
     generateStaffBasedCalendar();
   }, [schedule]);
 
