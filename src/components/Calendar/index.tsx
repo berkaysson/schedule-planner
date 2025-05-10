@@ -4,6 +4,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useDispatch } from "react-redux";
+
 import type { ScheduleInstance } from "../../models/schedule";
 import type { UserInstance } from "../../models/user";
 
@@ -21,6 +23,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+
+import { updateAssignment } from "../../store/schedule/actions";
 
 dayjs.extend(utc);
 dayjs.extend(isSameOrBefore);
@@ -118,6 +122,7 @@ const staffColors = [
 
 const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
   const calendarRef = useRef<FullCalendar>(null);
+  const dispatch = useDispatch();
 
   const [events, setEvents] = useState<EventInput[]>([]);
   const [highlightedDates, setHighlightedDates] = useState<string[]>([]);
@@ -220,6 +225,47 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
       setSelectedEventDetails(eventDetails);
       setModalOpen(true);
     }
+  };
+
+  const handleEventDrop = (info: any) => {
+    const assignmentId = info.event.id;
+    const newDate = info.event.start;
+
+    const assignment = getAssigmentById(assignmentId);
+    if (!assignment) return;
+
+    const originalShiftStart = dayjs(assignment.shiftStart);
+    const originalShiftEnd = dayjs(assignment.shiftEnd);
+
+    // Orijinal saat ve dakika değerlerini koru, sadece tarihi değiştir
+    const newShiftStart = dayjs(newDate)
+      .hour(originalShiftStart.hour())
+      .minute(originalShiftStart.minute())
+      .second(originalShiftStart.second())
+      .millisecond(originalShiftStart.millisecond());
+
+    const newShiftEnd = dayjs(newDate)
+      .hour(originalShiftEnd.hour())
+      .minute(originalShiftEnd.minute())
+      .second(originalShiftEnd.second())
+      .millisecond(originalShiftEnd.millisecond());
+
+    dispatch(
+      updateAssignment({
+        assignmentId,
+        newShiftStart: newShiftStart.toISOString(),
+        newShiftEnd: newShiftEnd.toISOString(),
+        onSuccess: () => {
+          console.log(
+            `Success, updated, new date: ${newShiftEnd.toISOString()}`
+          );
+        },
+        onError: (err: any) => {
+          console.error("Failed to update assignment:", err);
+          info.revert();
+        },
+      }) as any
+    );
   };
 
   // Her personeli renkleriyle eşleştir
@@ -422,6 +468,7 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
           fixedWeekCount={true}
           showNonCurrentDates={true}
           eventClick={handleEventClick}
+          eventDrop={handleEventDrop}
           eventContent={(eventInfo: any) => (
             <RenderEventContent eventInfo={eventInfo} />
           )}

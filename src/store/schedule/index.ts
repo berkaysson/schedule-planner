@@ -1,12 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Action } from 'redux-actions';
-
-import { handleActions } from 'redux-actions';
-
-import types from './types';
-
-import type { ErrorBE } from '../../utils/types';
-import type { ScheduleInstance } from '../../models/schedule';
+import type { Action } from "redux-actions";
+import { handleActions } from "redux-actions";
+import types from "./types";
+import type { ErrorBE } from "../../utils/types";
+import type { ScheduleInstance } from "../../models/schedule";
 
 export interface ScheduleState {
   errors: ErrorBE;
@@ -32,6 +29,44 @@ const scheduleReducer: any = {
   }),
 
   [types.FETCH_SCHEDULE_FAILED]: (
+    state: ScheduleState,
+    { payload }: Action<typeof state.errors>
+  ): ScheduleState => ({
+    ...state,
+    loading: false,
+    errors: payload,
+  }),
+
+  // Assignment güncellemesdi
+  [types.UPDATE_ASSIGNMENT_SUCCESS]: (
+    state: ScheduleState,
+    { payload }: Action<any>
+  ): ScheduleState => {
+    const { assignmentId, newShiftStart, newShiftEnd } = payload;
+    const updatedAssignments = state.schedule.assignments.map((assignment) => {
+      if (assignment.id === assignmentId) {
+        return {
+          ...assignment,
+          shiftStart: newShiftStart,
+          shiftEnd: newShiftEnd,
+          isUpdated: true,
+        };
+      }
+      return assignment;
+    });
+
+    return {
+      ...state,
+      loading: false,
+      errors: {},
+      schedule: {
+        ...state.schedule,
+        assignments: updatedAssignments,
+      },
+    };
+  },
+
+  [types.UPDATE_ASSIGNMENT_FAILED]: (
     state: ScheduleState,
     { payload }: Action<typeof state.errors>
   ): ScheduleState => ({
