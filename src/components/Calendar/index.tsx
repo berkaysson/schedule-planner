@@ -74,16 +74,61 @@ const classes = [
   "bg-forty",
 ];
 
+const staffColors = [
+  "#927212",
+  "#ff8847",
+  "#5e5e20",
+  "#32a852",
+  "#32a8a2",
+  "#327ba8",
+  "#3244a8",
+  "#5a32a8",
+  "#a832a4",
+  "#6b690a",
+  "#c2068a",
+  "#c28d06",
+  "#a2c206",
+  "#3ea813",
+  "#108f7c",
+  "#10278f",
+  "#51108f",
+  "#118f22",
+  "#620878",
+  "#40690a",
+  "#175a45",
+  "#09aa1d",
+  "#60d3e1",
+  "#8de149",
+  "#74db6c",
+  "#47216b",
+  "#447804",
+  "#933862",
+  "#7ff932",
+  "#2a7626",
+  "#b6065f",
+  "#52e6d3",
+  "#c8b062",
+  "#a749b7",
+  "#13249d",
+  "#01c40b",
+  "#2e6332",
+  "#70ae19",
+  "#b3524c",
+];
+
 const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
   const calendarRef = useRef<FullCalendar>(null);
 
   const [events, setEvents] = useState<EventInput[]>([]);
   const [highlightedDates, setHighlightedDates] = useState<string[]>([]);
-  const [pairDates, setPairDates] = useState<string[]>([]);
+  const [pairDates, setPairDates] = useState<{ [key: string]: string }>({}); // date -> staffId'ye map
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEventDetails, setSelectedEventDetails] = useState<any>(null);
+  const [staffColorMap, setStaffColorMap] = useState<{ [key: string]: string }>(
+    {}
+  );
 
   const getPlugins = () => {
     const plugins = [dayGridPlugin];
@@ -177,19 +222,33 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     }
   };
 
+  // Her personeli renkleriyle eşleştir
+  useEffect(() => {
+    if (schedule?.staffs && schedule.staffs.length > 0) {
+      const colorMap: { [key: string]: string } = {};
+      schedule.staffs.forEach((staff, index) => {
+        colorMap[staff.id] = staffColors[index % staffColors.length];
+      });
+      setStaffColorMap(colorMap);
+    }
+  }, [schedule?.staffs]);
+
   const getPairDatesForStaff = (staffId: string) => {
     const staff = getStaffById(staffId);
     if (!staff?.pairList || staff.pairList.length === 0) {
-      return [];
+      return {};
     }
 
-    const allPairDates: string[] = [];
+    const pairDatesMap: { [key: string]: string } = {};
 
     staff.pairList.forEach((pair: any) => {
       const pairDatesInRange = getDatesBetween(pair.startDate, pair.endDate);
-      allPairDates.push(...pairDatesInRange);
+      pairDatesInRange.forEach((date) => {
+        pairDatesMap[date] = pair.staffId;
+      });
     });
-    return allPairDates;
+
+    return pairDatesMap;
   };
 
   const generateStaffBasedCalendar = () => {
@@ -245,6 +304,32 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     setPairDates(staffPairDates);
   };
 
+  // Personel renkleri için dinamik CSS oluştur
+  useEffect(() => {
+    const style = document.createElement("style");
+    const css = Object.entries(staffColorMap)
+      .map(
+        ([staffId, color]) => `
+      .highlighted-pair-staff-${staffId} {
+        border-bottom: 5px solid ${color} !important;
+      }
+    `
+      )
+      .join("\n");
+
+    style.innerHTML = css;
+    style.id = "staff-colors-style";
+
+    document.head.appendChild(style);
+
+    return () => {
+      const styleElement = document.getElementById("staff-colors-style");
+      if (styleElement) {
+        styleElement.remove();
+      }
+    };
+  }, [staffColorMap]);
+
   // takvim varsayılan tarihi ilk evente göre ayarlandı
   useEffect(() => {
     if (schedule?.staffs && schedule.staffs.length > 0 && !selectedStaffId) {
@@ -280,29 +365,44 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     );
   };
 
+  const getStaffColor = (staffId: string) => {
+    return staffColorMap[staffId] || "#19979c";
+  };
+
   return (
     <div className="calendar-section">
       <div className="calendar-wrapper">
         <div className="staff-list">
-          {schedule?.staffs?.map((staff: any) => (
-            <div
-              key={staff.id}
-              onClick={() => setSelectedStaffId(staff.id)}
-              className={`staff ${
-                staff.id === selectedStaffId ? "active" : ""
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                height="20px"
-                viewBox="0 -960 960 960"
-                width="20px"
+          {schedule?.staffs?.map((staff: any) => {
+            const staffColor = getStaffColor(staff.id);
+
+            return (
+              <div
+                key={staff.id}
+                onClick={() => setSelectedStaffId(staff.id)}
+                className={`staff ${staff.id && selectedStaffId}`}
+                style={{
+                  borderWidth: "2px",
+                  borderColor: staffColor,
+                  backgroundColor:
+                    staff.id === selectedStaffId ? staffColor : "#ffffff",
+                }}
               >
-                <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17-62.5t47-43.5q60-30 124.5-46T480-440q67 0 131.5 16T736-378q30 15 47 43.5t17 62.5v112H160Zm320-400q33 0 56.5-23.5T560-640q0-33-23.5-56.5T480-720q-33 0-56.5 23.5T400-640q0 33 23.5 56.5T480-560Zm160 228v92h80v-32q0-11-5-20t-15-14q-14-8-29.5-14.5T640-332Zm-240-21v53h160v-53q-20-4-40-5.5t-40-1.5q-20 0-40 1.5t-40 5.5ZM240-240h80v-92q-15 5-30.5 11.5T260-306q-10 5-15 14t-5 20v32Zm400 0H320h320ZM480-640Z" />
-              </svg>
-              <span>{staff.name}</span>
-            </div>
-          ))}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  height="20px"
+                  viewBox="0 -960 960 960"
+                  width="20px"
+                >
+                  <path
+                    fill={staff.id === selectedStaffId ? "#ffffff" : staffColor}
+                    d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17-62.5t47-43.5q60-30 124.5-46T480-440q67 0 131.5 16T736-378q30 15 47 43.5t17 62.5v112H160Zm320-400q33 0 56.5-23.5T560-640q0-33-23.5-56.5T480-720q-33 0-56.5 23.5T400-640q0 33 23.5 56.5T480-560Zm160 228v92h80v-32q0-11-5-20t-15-14q-14-8-29.5-14.5T640-332Zm-240-21v53h160v-53q-20-4-40-5.5t-40-1.5q-20 0-40 1.5t-40 5.5ZM240-240h80v-92q-15 5-30.5 11.5T260-306q-10 5-15 14t-5 20v32Zm400 0H320h320ZM480-640Z"
+                  />
+                </svg>
+                <span>{staff.name}</span>
+              </div>
+            );
+          })}
         </div>
         <FullCalendar
           ref={calendarRef}
@@ -364,15 +464,21 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
             const isHighlighted = highlightedDates.includes(
               dayjs(date).format("DD-MM-YYYY")
             );
-            const isPairDate = pairDates.includes(
-              dayjs(date).format("DD-MM-YYYY")
-            );
+            const dateStr = dayjs(date).format("DD-MM-YYYY");
+            const pairStaffId = pairDates[dateStr];
 
             return (
               <div
                 className={`${found ? "" : "date-range-disabled"} ${
                   isHighlighted ? "highlighted-date-orange" : ""
-                } ${isPairDate ? "highlightedPair" : ""}`}
+                } ${
+                  pairStaffId ? `highlighted-pair-staff-${pairStaffId}` : ""
+                }`}
+                style={{
+                  borderBottom: pairStaffId
+                    ? `5px solid ${getStaffColor(pairStaffId)}`
+                    : undefined,
+                }}
               >
                 {dayjs(date).date()}
               </div>
