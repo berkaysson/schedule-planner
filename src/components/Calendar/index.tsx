@@ -133,15 +133,20 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     if (!schedule?.assignments || schedule.assignments.length === 0) {
       return dayjs(schedule?.scheduleStartDate).toDate();
     }
-
-    // En eski etkinliği bulun
-    const earliestAssignment = schedule.assignments.reduce(
-      (earliest, current) => {
-        const currentDate = dayjs(current.shiftStart);
-        const earliestDate = dayjs(earliest.shiftStart);
-        return currentDate.isBefore(earliestDate) ? current : earliest;
-      }
+    // Sadece seçili personelin etkinliklerine göre filtreleme
+    const staffAssignments = schedule.assignments.filter(
+      (assignment) => assignment.staffId === selectedStaffId
     );
+
+    if (staffAssignments.length === 0) {
+      return dayjs(schedule?.scheduleStartDate).toDate();
+    }
+
+    const earliestAssignment = staffAssignments.reduce((earliest, current) => {
+      const currentDate = dayjs(current.shiftStart);
+      const earliestDate = dayjs(earliest.shiftStart);
+      return currentDate.isBefore(earliestDate) ? current : earliest;
+    });
 
     return dayjs(earliestAssignment.shiftStart).toDate();
   };
@@ -170,28 +175,30 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
 
   const generateStaffBasedCalendar = () => {
     const works: EventInput[] = [];
+    const staffAssignments = schedule?.assignments?.filter(
+      (assignment) => assignment.staffId === selectedStaffId
+    );
 
-    for (let i = 0; i < schedule?.assignments?.length; i++) {
+    for (let i = 0; i < (staffAssignments?.length || 0); i++) {
+      const assignment = staffAssignments[i];
       const className = schedule?.shifts?.findIndex(
-        (shift) => shift.id === schedule?.assignments?.[i]?.shiftId
+        (shift) => shift.id === assignment.shiftId
       );
 
       const assignmentDate = dayjs
-        .utc(schedule?.assignments?.[i]?.shiftStart)
+        .utc(assignment.shiftStart)
         .format("YYYY-MM-DD");
       const isValidDate = validDates().includes(assignmentDate);
 
       const work = {
-        id: schedule?.assignments?.[i]?.id,
-        title: getShiftById(schedule?.assignments?.[i]?.shiftId)?.name,
+        id: assignment.id,
+        title: getShiftById(assignment.shiftId)?.name,
         duration: "01:00",
         date: assignmentDate,
-        staffId: schedule?.assignments?.[i]?.staffId,
-        shiftId: schedule?.assignments?.[i]?.shiftId,
+        staffId: assignment.staffId,
+        shiftId: assignment.shiftId,
         className: `event ${classes[className]} ${
-          getAssigmentById(schedule?.assignments?.[i]?.id)?.isUpdated
-            ? "highlight"
-            : ""
+          getAssigmentById(assignment.id)?.isUpdated ? "highlight" : ""
         } ${!isValidDate ? "invalid-date" : ""}`,
       };
       works.push(work);
@@ -217,11 +224,17 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
 
   // takvim varsayılan tarihi ilk evente göre ayarlandı
   useEffect(() => {
-    if (schedule?.staffs && schedule.staffs.length > 0) {
+    if (schedule?.staffs && schedule.staffs.length > 0 && !selectedStaffId) {
       setSelectedStaffId(schedule.staffs[0].id);
     }
+  }, [schedule?.staffs]);
 
-    if (schedule?.assignments && schedule.assignments.length > 0) {
+  useEffect(() => {
+    if (
+      selectedStaffId &&
+      schedule?.assignments &&
+      schedule.assignments.length > 0
+    ) {
       const firstEventDate = getFirstEventDate();
       setInitialDate(firstEventDate);
 
@@ -234,11 +247,7 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     }
 
     generateStaffBasedCalendar();
-  }, [schedule]);
-
-  useEffect(() => {
-    generateStaffBasedCalendar();
-  }, [selectedStaffId]);
+  }, [selectedStaffId, schedule]);
 
   const RenderEventContent = ({ eventInfo }: any) => {
     return (
