@@ -20,9 +20,11 @@ import EventDetailModal from "../EventDetailModal";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
 dayjs.extend(utc);
 dayjs.extend(isSameOrBefore);
+dayjs.extend(customParseFormat); // farklı tarih formatlarını kullanabilmek için, pair dates için gerekli
 
 type CalendarContainerProps = {
   schedule: ScheduleInstance;
@@ -77,6 +79,7 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
 
   const [events, setEvents] = useState<EventInput[]>([]);
   const [highlightedDates, setHighlightedDates] = useState<string[]>([]);
+  const [pairDates, setPairDates] = useState<string[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
   const [modalOpen, setModalOpen] = useState(false);
@@ -117,13 +120,14 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
 
   const getDatesBetween = (startDate: string, endDate: string) => {
     const dates = [];
-    const start = dayjs(startDate, "DD.MM.YYYY").toDate();
-    const end = dayjs(endDate, "DD.MM.YYYY").toDate();
-    const current = new Date(start);
+    const start = dayjs(startDate, "DD.MM.YYYY");
+    const end = dayjs(endDate, "DD.MM.YYYY");
 
-    while (current <= end) {
-      dates.push(dayjs(current).format("DD-MM-YYYY"));
-      current.setDate(current.getDate() + 1);
+    let current = start.clone();
+
+    while (current.isSameOrBefore(end, "day")) {
+      dates.push(current.format("DD-MM-YYYY"));
+      current = current.add(1, "day");
     }
 
     return dates;
@@ -173,6 +177,21 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     }
   };
 
+  const getPairDatesForStaff = (staffId: string) => {
+    const staff = getStaffById(staffId);
+    if (!staff?.pairList || staff.pairList.length === 0) {
+      return [];
+    }
+
+    const allPairDates: string[] = [];
+
+    staff.pairList.forEach((pair: any) => {
+      const pairDatesInRange = getDatesBetween(pair.startDate, pair.endDate);
+      allPairDates.push(...pairDatesInRange);
+    });
+    return allPairDates;
+  };
+
   const generateStaffBasedCalendar = () => {
     const works: EventInput[] = [];
     const staffAssignments = schedule?.assignments?.filter(
@@ -220,6 +239,10 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
 
     setHighlightedDates(highlightedDates);
     setEvents(works);
+
+    // Seçili personelin pair tarihlerini al
+    const staffPairDates = getPairDatesForStaff(selectedStaffId || "");
+    setPairDates(staffPairDates);
   };
 
   // takvim varsayılan tarihi ilk evente göre ayarlandı
@@ -341,12 +364,15 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
             const isHighlighted = highlightedDates.includes(
               dayjs(date).format("DD-MM-YYYY")
             );
+            const isPairDate = pairDates.includes(
+              dayjs(date).format("DD-MM-YYYY")
+            );
 
             return (
               <div
                 className={`${found ? "" : "date-range-disabled"} ${
                   isHighlighted ? "highlighted-date-orange" : ""
-                } highlightedPair`}
+                } ${isPairDate ? "highlightedPair" : ""}`}
               >
                 {dayjs(date).date()}
               </div>
