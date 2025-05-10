@@ -15,6 +15,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import type { EventInput } from "@fullcalendar/core/index.js";
 
 import "../profileCalendar.scss";
+import EventDetailModal from "../EventDetailModal";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -78,6 +79,8 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
   const [highlightedDates, setHighlightedDates] = useState<string[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedEventDetails, setSelectedEventDetails] = useState<any>(null);
 
   const getPlugins = () => {
     const plugins = [dayGridPlugin];
@@ -141,6 +144,28 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
     );
 
     return dayjs(earliestAssignment.shiftStart).toDate();
+  };
+
+  const handleEventClick = (clickInfo: any) => {
+    const eventId = clickInfo.event.id;
+    const assignment = getAssigmentById(eventId);
+
+    if (assignment) {
+      const staff = getStaffById(assignment.staffId);
+      const shift = getShiftById(assignment.shiftId);
+
+      const eventDetails = {
+        staffName: staff?.name || "Unknown Staff",
+        shiftName: shift?.name || "Unknown Shift",
+        date: dayjs(assignment.shiftStart).format("DD.MM.YYYY"),
+        startTime: dayjs(assignment.shiftStart).format("HH:mm"),
+        endTime: dayjs(assignment.shiftEnd).format("HH:mm"),
+        assignmentId: assignment.id,
+      };
+
+      setSelectedEventDetails(eventDetails);
+      setModalOpen(true);
+    }
   };
 
   const generateStaffBasedCalendar = () => {
@@ -264,6 +289,7 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
           dayMaxEventRows={4}
           fixedWeekCount={true}
           showNonCurrentDates={true}
+          eventClick={handleEventClick}
           eventContent={(eventInfo: any) => (
             <RenderEventContent eventInfo={eventInfo} />
           )}
@@ -319,6 +345,12 @@ const CalendarContainer = ({ schedule, auth }: CalendarContainerProps) => {
           }}
         />
       </div>
+
+      <EventDetailModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        eventDetails={selectedEventDetails}
+      />
     </div>
   );
 };
