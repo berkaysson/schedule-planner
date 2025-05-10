@@ -1,9 +1,9 @@
 .profile-calendar-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px;
-  background-color: #f9f9f9;
+  gap: 24px;
+  padding: 24px;
+  background-color: #f8fafc;
 }
 
 .profile-section {
@@ -18,6 +18,8 @@
 
 .profile-info h2 {
   margin: 0 0 8px;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .calendar-section {
@@ -25,11 +27,10 @@
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  /* height: 100%; */
 }
 
 .calendar-wrapper {
-  min-height: 400px;
+  min-height: 500px;
 }
 
 .staff-calendar-container {
@@ -46,6 +47,8 @@
     overflow: hidden;
     user-select: none;
     position: relative;
+    padding: 3px 6px;
+    border-radius: 4px;
 
     .event-actions {
       display: flex;
@@ -392,18 +395,18 @@
   margin: auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
+  margin-bottom: 16px;
 
   .staff {
     min-height: 32px;
-    padding: 0 12px;
+    padding: 2px 12px;
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #ffffff;
-    color: #19979c;
+    color: #000000;
     border: 1px solid #19979c;
-    border-radius: 8px;
+    border-radius: 10rem;
     text-transform: capitalize;
     transition: all 0.3s;
     cursor: pointer;
@@ -426,9 +429,4 @@
       color: inherit;
     }
   }
-}
-
-.highlightedPair {
-  content: "";
-  border-bottom: 5px solid rgba(194, 6, 138, 0.5) !important;
 }
